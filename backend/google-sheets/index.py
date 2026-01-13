@@ -43,7 +43,11 @@ def handler(event: dict, context) -> dict:
         }
 
     spreadsheet_id = '1FiMov0r4UUDKT6A56NWMImpoUakDC2YDevgaOpJQ7Qc'
-    range_name = 'Расписание НГОК!A:H'
+    
+    query_params = event.get('queryStringParameters') or {}
+    sheet_name = query_params.get('sheet', 'расписание для 2-4 курса на 1-6')
+    
+    range_name = f'{sheet_name}!A:Z'
     
     url = f'https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{range_name}?key={api_key}'
 
