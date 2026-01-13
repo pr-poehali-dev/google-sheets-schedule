@@ -26,20 +26,30 @@ interface ScheduleItem {
 
 const BACKEND_URL = 'https://functions.poehali.dev/abadd336-a345-4cc8-ae34-7d389f29e917';
 
+const SHEETS = [
+  { value: 'расписание для 2-4 курса на 1-6', label: '2-4 курс (1-6 недели)' },
+  { value: 'Расписание 3-4 курсы', label: '3-4 курсы' },
+  { value: 'расписание преподавателей', label: 'Преподаватели' },
+];
+
 const Index = () => {
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
+  const [selectedSheet, setSelectedSheet] = useState<string>('расписание для 2-4 курса на 1-6');
   const [activeTab, setActiveTab] = useState<string>('schedule');
   const [scheduleData, setScheduleData] = useState<ScheduleItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchSchedule = async () => {
+  const fetchSchedule = async (sheetName?: string) => {
     setIsLoading(true);
     setError(null);
     
+    const sheet = sheetName || selectedSheet;
+    
     try {
-      const response = await fetch(BACKEND_URL);
+      const url = `${BACKEND_URL}?sheet=${encodeURIComponent(sheet)}`;
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error('Не удалось загрузить расписание');
@@ -76,7 +86,7 @@ const Index = () => {
 
   useEffect(() => {
     fetchSchedule();
-  }, []);
+  }, [selectedSheet]);
 
   const mockScheduleData: ScheduleItem[] = [
     {
@@ -247,34 +257,52 @@ const Index = () => {
               </Card>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Filter className="w-5 h-5 text-gray-500" />
-                <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Выберите группу" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Все группы</SelectItem>
-                    {groups.slice(1).map((group) => (
-                      <SelectItem key={group} value={group}>
-                        {group}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-gray-500" />
+                  <Select value={selectedSheet} onValueChange={setSelectedSheet}>
+                    <SelectTrigger className="w-60">
+                      <SelectValue placeholder="Выберите расписание" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SHEETS.map((sheet) => (
+                        <SelectItem key={sheet.value} value={sheet.value}>
+                          {sheet.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <Button
-                onClick={fetchSchedule}
-                disabled={isLoading}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                Обновить
-              </Button>
+                <div className="flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-gray-500" />
+                  <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Выберите группу" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Все группы</SelectItem>
+                      {groups.slice(1).map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button
+                  onClick={() => fetchSchedule()}
+                  disabled={isLoading}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  Обновить
+                </Button>
+              </div>
             </div>
 
             {isLoading && (
