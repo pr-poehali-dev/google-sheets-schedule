@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { Calendar, Clock, MapPin, User, Filter, Info } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Calendar, Clock, MapPin, User, Filter, Info, RefreshCw, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -23,9 +24,59 @@ interface ScheduleItem {
   type: string;
 }
 
+const BACKEND_URL = 'https://functions.poehali.dev/abadd336-a345-4cc8-ae34-7d389f29e917';
+
 const Index = () => {
   const [selectedGroup, setSelectedGroup] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<string>('schedule');
+  const [scheduleData, setScheduleData] = useState<ScheduleItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const fetchSchedule = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(BACKEND_URL);
+      
+      if (!response.ok) {
+        throw new Error('Не удалось загрузить расписание');
+      }
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      setScheduleData(data.schedule || []);
+      
+      if (data.schedule && data.schedule.length > 0) {
+        toast({
+          title: 'Расписание обновлено',
+          description: `Загружено ${data.schedule.length} занятий`,
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Неизвестная ошибка';
+      setError(errorMessage);
+      setScheduleData(mockScheduleData);
+      
+      toast({
+        title: 'Ошибка загрузки',
+        description: 'Показаны тестовые данные',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSchedule();
+  }, []);
 
   const mockScheduleData: ScheduleItem[] = [
     {
@@ -92,15 +143,15 @@ const Index = () => {
 
   const groups = useMemo(() => {
     const uniqueGroups = Array.from(
-      new Set(mockScheduleData.map((item) => item.group).filter(Boolean))
+      new Set(scheduleData.map((item) => item.group).filter(Boolean))
     );
     return ['all', ...uniqueGroups];
-  }, []);
+  }, [scheduleData]);
 
   const filteredSchedule = useMemo(() => {
-    if (selectedGroup === 'all') return mockScheduleData;
-    return mockScheduleData.filter((item) => item.group === selectedGroup);
-  }, [selectedGroup]);
+    if (selectedGroup === 'all') return scheduleData;
+    return scheduleData.filter((item) => item.group === selectedGroup);
+  }, [selectedGroup, scheduleData]);
 
   const getCurrentAndNextClass = () => {
     const now = new Date();
@@ -180,6 +231,22 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="schedule" className="space-y-6">
+            {error && (
+              <Card className="p-4 border-orange-200 bg-orange-50">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-orange-900">
+                      Google Sheets API ключ не настроен
+                    </p>
+                    <p className="text-sm text-orange-700">
+                      Показаны тестовые данные. Добавьте ключ для загрузки реального расписания.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
               <div className="flex items-center gap-2">
                 <Filter className="w-5 h-5 text-gray-500" />
@@ -197,9 +264,36 @@ const Index = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              <Button
+                onClick={fetchSchedule}
+                disabled={isLoading}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Обновить
+              </Button>
             </div>
 
-            {(currentClass || nextClass) && (
+            {isLoading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center space-y-3">
+                  <RefreshCw className="w-8 h-8 animate-spin text-primary mx-auto" />
+                  <p className="text-gray-600">Загрузка расписания...</p>
+                </div>
+              </div>
+            )}
+
+            {!isLoading && filteredSchedule.length === 0 && (
+              <Card className="p-8 text-center">
+                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600">Расписание пусто</p>
+              </Card>
+            )}
+
+            {!isLoading && filteredSchedule.length > 0 && (currentClass || nextClass) && (
               <div className="grid md:grid-cols-2 gap-4">
                 {currentClass && (
                   <Card className="p-5 border-2 border-primary bg-primary/5 animate-fade-in">
@@ -258,8 +352,9 @@ const Index = () => {
               </div>
             )}
 
-            <div className="space-y-8">
-              {Object.entries(groupedByDate).map(([date, classes]) => (
+            {!isLoading && filteredSchedule.length > 0 && (
+              <div className="space-y-8">
+                {Object.entries(groupedByDate).map(([date, classes]) => (
                 <div key={date} className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-gray-200" />
@@ -320,7 +415,8 @@ const Index = () => {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="about" className="space-y-6">
