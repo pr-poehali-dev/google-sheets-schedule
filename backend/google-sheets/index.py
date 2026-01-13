@@ -43,7 +43,7 @@ def handler(event: dict, context) -> dict:
         }
 
     spreadsheet_id = '1FiMov0r4UUDKT6A56NWMImpoUakDC2YDevgaOpJQ7Qc'
-    range_name = 'гд924/2!A:H'
+    range_name = 'Расписание НГОК!A:H'
     
     url = f'https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{range_name}?key={api_key}'
 
